@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Task Manager • Flask</title>
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand: #1e6bd6;
+    }
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; background: #f6f8fb; }
+    .navbar { background: var(--brand); }
+    .navbar .navbar-brand, .navbar .nav-link, .navbar .dropdown-toggle { color: #fff !important; }
+    .card { border: 0; box-shadow: 0 6px 24px rgba(16,24,40,.06); border-radius: 1rem; }
+    .btn-rounded { border-radius: 999px; }
+    .table thead th { font-weight: 600; color: #475467; text-transform: uppercase; font-size: .75rem; letter-spacing: .04em; }
+    .table td { vertical-align: middle; }
+    .badge-soft { background: #eef2ff; color: #3730a3; }
+    .badge-priority-high { background: #fee4e2; color: #b42318; }
+    .badge-priority-medium { background: #fef0c7; color: #93370d; }
+    .badge-priority-low { background: #ecfdf3; color: #05603a; }
+    .status-pill { border-radius: 999px; padding: .25rem .65rem; font-size: .75rem; }
+    .status-open { background: #e6f0ff; color: #1e40af; }
+    .status-done { background: #eafaf1; color: #027a48; }
+    .status-overdue { background: #fff1f3; color: #b42318; }
+    .table-responsive { border-radius: .75rem; overflow: hidden; }
+    .filter-row .form-select, .filter-row .form-control { min-width: 150px; }
+    footer { color: #667085; }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <nav class="navbar navbar-expand-lg">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand fw-bold" href="#">Flask</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topnav" aria-controls="topnav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="topnav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="#">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Tarefas</a></li>
+        </ul>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-light btn-sm btn-rounded" id="btnExportCSV">Exportar CSV</button>
+          <button class="btn btn-outline-light btn-sm btn-rounded" id="btnExportPDF">Exportar PDF</button>
+          <div class="dropdown">
+            <button class="btn btn-light btn-sm dropdown-toggle" data-bs-toggle="dropdown">jean@exemplo</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#">Perfil</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="#">Sair</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h1 class="h3 mb-1">Gerenciador de Tarefas</h1>
+        <p class="text-muted mb-0">Sessão individual • CRUD • Categorias • Prioridades • Busca & Filtros</p>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-rounded" data-bs-toggle="modal" data-bs-target="#taskModal"><span class="me-1">＋</span>Nova Tarefa</button>
+      </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="row g-2 align-items-end filter-row">
+          <div class="col-12 col-md-3">
+            <label class="form-label mb-1">Busca</label>
+            <input id="searchInput" class="form-control" type="search" placeholder="Buscar por título ou descrição…" />
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label mb-1">Categoria</label>
+            <select id="filterCategory" class="form-select">
+              <option value="">Todas</option>
+              <option>Trabalho</option>
+              <option>Pessoal</option>
+              <option>Casa</option>
+              <option>Estudos</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label mb-1">Prioridade</label>
+            <select id="filterPriority" class="form-select">
+              <option value="">Todas</option>
+              <option>Alta</option>
+              <option>Média</option>
+              <option>Baixa</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label mb-1">Status</label>
+            <select id="filterStatus" class="form-select">
+              <option value="">Todos</option>
+              <option>Aberta</option>
+              <option>Concluída</option>
+              <option>Atrasada</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label mb-1">Prazo entre</label>
+            <div class="d-flex gap-2">
+              <input id="dateFrom" type="date" class="form-control" />
+              <input id="dateTo" type="date" class="form-control" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table align-middle" id="tasksTable">
+            <thead>
+              <tr>
+                <th style="width:28%">Título</th>
+                <th style="width:12%">Categoria</th>
+                <th style="width:12%">Prioridade</th>
+                <th style="width:14%">Criada em</th>
+                <th style="width:14%">Prazo</th>
+                <th style="width:10%">Status</th>
+                <th class="text-end" style="width:10%">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Linhas de exemplo geradas por JS -->
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination mock -->
+        <nav class="mt-3" aria-label="Paginação">
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item disabled"><a class="page-link">Anterior</a></li>
+            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+            <li class="page-item"><a class="page-link" href="#">2</a></li>
+            <li class="page-item"><a class="page-link" href="#">3</a></li>
+            <li class="page-item"><a class="page-link" href="#">Próximo</a></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+
+    <footer class="py-4 text-center small">Feito com Flask, Jinja2, Bootstrap, Flask-Login, Flask-WTF • Exportação CSV/PDF</footer>
+  </main>
+
+  <!-- Create/Edit Task Modal -->
+  <div class="modal fade" id="taskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <form id="taskForm">
+          <div class="modal-header">
+            <h5 class="modal-title">Nova Tarefa</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label class="form-label">Título</label>
+                <input name="title" class="form-control" required />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Prazo</label>
+                <input name="due" type="date" class="form-control" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Categoria</label>
+                <select name="category" class="form-select">
+                  <option>Trabalho</option>
+                  <option>Pessoal</option>
+                  <option>Casa</option>
+                  <option>Estudos</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Prioridade</label>
+                <select name="priority" class="form-select">
+                  <option>Alta</option>
+                  <option>Média</option>
+                  <option>Baixa</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                  <option>Aberta</option>
+                  <option>Concluída</option>
+                  <option>Atrasada</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Descrição</label>
+                <textarea name="description" class="form-control" rows="3" placeholder="Detalhes da tarefa…"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirm Modal -->
+  <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Excluir tarefa</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Tem certeza que deseja excluir esta tarefa? Essa ação não pode ser desfeita.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="confirmDelete">Excluir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
+    <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header">
+        <strong class="me-auto">Task Manager</strong>
+        <small>agora</small>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body">Ação executada com sucesso.</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // ===== Mock data (exemplo) =====
+    const tasks = [
+      { id: 1, title: 'Comprar mantimentos', category: 'Pessoal', priority: 'Alta', created: '2025-08-15', due: '2025-08-18', status: 'Aberta', description: 'Lista: arroz, feijão, leite.' },
+      { id: 2, title: 'Relatório do projeto', category: 'Trabalho', priority: 'Média', created: '2025-08-10', due: '2025-08-20', status: 'Aberta', description: 'Capítulos 3 e 4.' },
+      { id: 3, title: 'Chamar encanador', category: 'Casa', priority: 'Baixa', created: '2025-08-01', due: '2025-08-19', status: 'Atrasada', description: 'Vazamento na pia da cozinha.' },
+      { id: 4, title: 'Estudar Flask', category: 'Estudos', priority: 'Média', created: '2025-08-12', due: '2025-08-22', status: 'Concluída', description: 'Login, CRUD, Exportação.' },
+    ];
+
+    const tbody = document.querySelector('#tasksTable tbody');
+
+    function priorityBadge(p) {
+      if (p === 'Alta') return '<span class="badge status-pill badge-priority-high">Alta</span>';
+      if (p === 'Média') return '<span class="badge status-pill badge-priority-medium">Média</span>';
+      return '<span class="badge status-pill badge-priority-low">Baixa</span>';
+    }
+    function statusPill(s) {
+      if (s === 'Concluída') return '<span class="status-pill status-done">Concluída</span>';
+      if (s === 'Atrasada') return '<span class="status-pill status-overdue">Atrasada</span>';
+      return '<span class="status-pill status-open">Aberta</span>';
+    }
+
+    function renderRows(data) {
+      tbody.innerHTML = data.map(t => `
+        <tr data-id="${t.id}">
+          <td>
+            <div class="fw-semibold">${t.title}</div>
+            <div class="text-muted small">${t.description}</div>
+          </td>
+          <td>${t.category}</td>
+          <td>${priorityBadge(t.priority)}</td>
+          <td>${t.created}</td>
+          <td>${t.due}</td>
+          <td>${statusPill(t.status)}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-secondary me-1" onclick="onEdit(${t.id})">Editar</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="onDelete(${t.id})">Excluir</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    renderRows(tasks);
+
+    // ===== Filtros & Busca =====
+    function applyFilters() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const cat = document.getElementById('filterCategory').value;
+      const pr = document.getElementById('filterPriority').value;
+      const st = document.getElementById('filterStatus').value;
+      const d1 = document.getElementById('dateFrom').value;
+      const d2 = document.getElementById('dateTo').value;
+      const filtered = tasks.filter(t => {
+        let ok = true;
+        if (q && !(t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q))) ok = false;
+        if (cat && t.category !== cat) ok = false;
+        if (pr && t.priority !== pr) ok = false;
+        if (st && t.status !== st) ok = false;
+        if (d1 && t.due < d1) ok = false;
+        if (d2 && t.due > d2) ok = false;
+        return ok;
+      });
+      renderRows(filtered);
+    }
+
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('filterCategory').addEventListener('change', applyFilters);
+    document.getElementById('filterPriority').addEventListener('change', applyFilters);
+    document.getElementById('filterStatus').addEventListener('change', applyFilters);
+    document.getElementById('dateFrom').addEventListener('change', applyFilters);
+    document.getElementById('dateTo').addEventListener('change', applyFilters);
+
+    // ===== CRUD (mock) =====
+    const taskForm = document.getElementById('taskForm');
+    let editingId = null;
+
+    function onEdit(id) {
+      const t = tasks.find(x => x.id === id);
+      if (!t) return;
+      editingId = id;
+      taskForm.querySelector('.modal-title').textContent = 'Editar Tarefa';
+      taskForm.title.value = t.title;
+      taskForm.description.value = t.description;
+      taskForm.category.value = t.category;
+      taskForm.priority.value = t.priority;
+      taskForm.status.value = t.status;
+      taskForm.due.value = t.due;
+      const modal = new bootstrap.Modal('#taskModal');
+      modal.show();
+    }
+
+    function onDelete(id) {
+      const delBtn = document.getElementById('confirmDelete');
+      delBtn.onclick = () => {
+        const idx = tasks.findIndex(x => x.id === id);
+        if (idx > -1) { tasks.splice(idx, 1); applyFilters(); showToast('Tarefa excluída.'); }
+        bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+      };
+      new bootstrap.Modal('#deleteModal').show();
+    }
+
+    taskForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const payload = {
+        id: editingId ?? (Math.max(0, ...tasks.map(t => t.id)) + 1),
+        title: taskForm.title.value.trim(),
+        description: taskForm.description.value.trim(),
+        category: taskForm.category.value,
+        priority: taskForm.priority.value,
+        status: taskForm.status.value,
+        created: new Date().toISOString().slice(0,10),
+        due: taskForm.due.value || new Date().toISOString().slice(0,10)
+      };
+      if (editingId) {
+        const idx = tasks.findIndex(t => t.id === editingId);
+        tasks[idx] = payload;
+        showToast('Tarefa atualizada.');
+      } else {
+        tasks.unshift(payload);
+        showToast('Tarefa criada.');
+      }
+      editingId = null;
+      taskForm.reset();
+      bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
+      applyFilters();
+    });
+
+    // ===== Export (placeholders) =====
+    document.getElementById('btnExportCSV').addEventListener('click', () => showToast('Exportação CSV será feita no backend (pandas).'));
+    document.getElementById('btnExportPDF').addEventListener('click', () => showToast('Exportação PDF será feita no backend (ReportLab).'));
+
+    // ===== Toast helper =====
+    function showToast(msg) {
+      document.querySelector('#toast .toast-body').textContent = msg;
+      const t = new bootstrap.Toast(document.getElementById('toast'));
+      t.show();
+    }
+  </script>
+</body>
+</html>
